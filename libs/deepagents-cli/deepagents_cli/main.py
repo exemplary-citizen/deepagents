@@ -109,6 +109,23 @@ def parse_args():
         "--sandbox-setup",
         help="Path to setup script to run in sandbox after creation",
     )
+    parser.add_argument(
+        "--model",
+        help="Override the model name (e.g., gpt-4, claude-sonnet-4-5-20250929, meta-llama/llama-3-70b)",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "anthropic", "custom"],
+        help="LLM provider to use (custom allows OpenAI-compatible APIs with --api-base)",
+    )
+    parser.add_argument(
+        "--api-base",
+        help="Custom API base URL for OpenAI-compatible APIs (e.g., https://openrouter.ai/api/v1)",
+    )
+    parser.add_argument(
+        "--api-key",
+        help="Override API key (useful for testing with different keys)",
+    )
 
     return parser.parse_args()
 
@@ -286,6 +303,10 @@ async def main(
     sandbox_type: str = "none",
     sandbox_id: str | None = None,
     setup_script_path: str | None = None,
+    model_override: str | None = None,
+    provider_override: str | None = None,
+    api_base_override: str | None = None,
+    api_key_override: str | None = None,
 ):
     """Main entry point with conditional sandbox support.
 
@@ -295,8 +316,17 @@ async def main(
         sandbox_type: Type of sandbox ("none", "modal", "runloop", "daytona")
         sandbox_id: Optional existing sandbox ID to reuse
         setup_script_path: Optional path to setup script to run in sandbox
+        model_override: Optional model name override
+        provider_override: Optional provider override
+        api_base_override: Optional API base URL override
+        api_key_override: Optional API key override
     """
-    model = create_model()
+    model = create_model(
+        model=model_override,
+        provider=provider_override,
+        api_base=api_base_override,
+        api_key=api_key_override,
+    )
 
     # Branch 1: User wants a sandbox
     if sandbox_type != "none":
@@ -370,6 +400,10 @@ def cli_main() -> None:
                     args.sandbox,
                     args.sandbox_id,
                     args.sandbox_setup,
+                    model_override=args.model,
+                    provider_override=args.provider,
+                    api_base_override=args.api_base,
+                    api_key_override=args.api_key,
                 )
             )
     except KeyboardInterrupt:

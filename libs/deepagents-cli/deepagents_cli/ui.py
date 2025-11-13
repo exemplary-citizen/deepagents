@@ -552,6 +552,10 @@ def show_help() -> None:
 
     console.print("[bold]Options:[/bold]", style=COLORS["primary"])
     console.print("  --agent NAME                  Agent identifier (default: agent)")
+    console.print("  --model MODEL                 Override model name (e.g., gpt-4, claude-opus-4)")
+    console.print("  --provider PROVIDER           LLM provider: openai, anthropic, or custom")
+    console.print("  --api-base URL                Custom API base URL for OpenAI-compatible APIs")
+    console.print("  --api-key KEY                 Override API key")
     console.print("  --auto-approve                Auto-approve tool usage without prompting")
     console.print(
         "  --sandbox TYPE                Remote sandbox for execution (modal, runloop, daytona)"
@@ -565,6 +569,22 @@ def show_help() -> None:
     )
     console.print(
         "  deepagents --agent mybot                # Start with agent named 'mybot'",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --model gpt-4 --provider openai  # Use specific OpenAI model",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --model claude-opus-4 --provider anthropic  # Use specific Claude model",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --provider custom --model meta-llama/llama-3-70b \\",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "             --api-base https://openrouter.ai/api/v1 --api-key $KEY  # Use OpenRouter",
         style=COLORS["dim"],
     )
     console.print(

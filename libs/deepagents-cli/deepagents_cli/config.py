@@ -80,41 +80,104 @@ def get_default_coding_instructions() -> str:
     return default_prompt_path.read_text()
 
 
-def create_model():
-    """Create the appropriate model based on available API keys.
+def create_model(
+    model: str | None = None,
+    provider: str | None = None,
+    api_base: str | None = None,
+    api_key: str | None = None,
+):
+    """Create the appropriate model based on CLI arguments or environment variables.
+
+    Args:
+        model: Override model name (e.g., "gpt-4", "claude-sonnet-4-5-20250929")
+        provider: Override provider ("openai", "anthropic", or "custom")
+        api_base: Custom API base URL for OpenAI-compatible APIs
+        api_key: Override API key
 
     Returns:
         ChatModel instance (OpenAI or Anthropic)
 
     Raises:
-        SystemExit if no API key is configured
+        SystemExit if no API key is configured or invalid configuration
     """
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    # Determine API keys (CLI override or environment)
+    openai_key = api_key if api_key and provider in ["openai", "custom", None] else os.environ.get("OPENAI_API_KEY")
+    anthropic_key = api_key if api_key and provider == "anthropic" else os.environ.get("ANTHROPIC_API_KEY")
 
-    if openai_key:
-        from langchain_openai import ChatOpenAI
+    # If provider is explicitly set, use that provider
+    if provider == "anthropic":
+        if not anthropic_key:
+            console.print("[bold red]Error:[/bold red] ANTHROPIC_API_KEY not set.")
+            console.print("\nPlease set it with:")
+            console.print("  export ANTHROPIC_API_KEY=your_api_key_here")
+            console.print("\nOr use --api-key flag.")
+            sys.exit(1)
 
-        model_name = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
-        console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
-        return ChatOpenAI(
-            model=model_name,
-            temperature=0.7,
-        )
-    if anthropic_key:
         from langchain_anthropic import ChatAnthropic
 
-        model_name = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+        model_name = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
         console.print(f"[dim]Using Anthropic model: {model_name}[/dim]")
         return ChatAnthropic(
             model_name=model_name,
             max_tokens=20000,
+            api_key=anthropic_key,
         )
-    console.print("[bold red]Error:[/bold red] No API key configured.")
-    console.print("\nPlease set one of the following environment variables:")
-    console.print("  - OPENAI_API_KEY     (for OpenAI models like gpt-5-mini)")
-    console.print("  - ANTHROPIC_API_KEY  (for Claude models)")
-    console.print("\nExample:")
-    console.print("  export OPENAI_API_KEY=your_api_key_here")
-    console.print("\nOr add it to your .env file.")
-    sys.exit(1)
+
+    elif provider in ["openai", "custom"] or provider is None:
+        # OpenAI or custom OpenAI-compatible API
+        if not openai_key:
+            # If no explicit provider and no OpenAI key, try Anthropic
+            if provider is None and anthropic_key:
+                from langchain_anthropic import ChatAnthropic
+
+                model_name = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+                console.print(f"[dim]Using Anthropic model: {model_name}[/dim]")
+                return ChatAnthropic(
+                    model_name=model_name,
+                    max_tokens=20000,
+                    api_key=anthropic_key,
+                )
+
+            # No API key available
+            console.print("[bold red]Error:[/bold red] No API key configured.")
+            console.print("\nPlease set one of the following:")
+            console.print("  - OPENAI_API_KEY     (for OpenAI models)")
+            console.print("  - ANTHROPIC_API_KEY  (for Claude models)")
+            console.print("  - Use --api-key flag with --provider")
+            console.print("\nExample:")
+            console.print("  export OPENAI_API_KEY=your_api_key_here")
+            console.print("\nOr add it to your .env file.")
+            sys.exit(1)
+
+        from langchain_openai import ChatOpenAI
+
+        # Determine model name
+        if provider == "custom" and not model:
+            console.print("[bold red]Error:[/bold red] --model is required when using --provider custom")
+            sys.exit(1)
+
+        model_name = model or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+
+        # Build ChatOpenAI kwargs
+        kwargs = {
+            "model": model_name,
+            "temperature": 0.7,
+            "api_key": openai_key,
+        }
+
+        # Add custom base_url if provided
+        if api_base:
+            kwargs["base_url"] = api_base
+            console.print(f"[dim]Using custom OpenAI-compatible API: {api_base}[/dim]")
+            console.print(f"[dim]Model: {model_name}[/dim]")
+        elif provider == "custom":
+            console.print("[bold red]Error:[/bold red] --api-base is required when using --provider custom")
+            sys.exit(1)
+        else:
+            console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
+
+        return ChatOpenAI(**kwargs)
+
+    else:
+        console.print(f"[bold red]Error:[/bold red] Unknown provider: {provider}")
+        sys.exit(1)
