@@ -556,6 +556,9 @@ def show_help() -> None:
     console.print(
         "  --sandbox TYPE                Remote sandbox for execution (modal, runloop, daytona)"
     )
+    console.print("  --model MODEL                 Override chat model used for this session")
+    console.print("  --provider PROVIDER           Force provider (openai or anthropic)")
+    console.print("  --base-url URL                Override OpenAI-compatible API base URL")
     console.print("  --sandbox-id ID               Reuse existing sandbox (skips creation/cleanup)")
     console.print()
 
@@ -569,6 +572,18 @@ def show_help() -> None:
     )
     console.print(
         "  deepagents --auto-approve               # Start with auto-approve enabled",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --model gpt-4o               # Override the default OpenAI model",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --provider anthropic --model claude-3-opus   # Force Anthropic model",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --provider openai --model meta/llama-3 --base-url https://openrouter.ai/api/v1",
         style=COLORS["dim"],
     )
     console.print(

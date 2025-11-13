@@ -80,7 +80,12 @@ def get_default_coding_instructions() -> str:
     return default_prompt_path.read_text()
 
 
-def create_model():
+def create_model(
+    *,
+    model_override: str | None = None,
+    provider_override: str | None = None,
+    base_url_override: str | None = None,
+):
     """Create the appropriate model based on available API keys.
 
     Returns:
@@ -90,31 +95,79 @@ def create_model():
         SystemExit if no API key is configured
     """
     openai_key = os.environ.get("OPENAI_API_KEY")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    provider = None
 
-    if openai_key:
+    if provider_override:
+        provider_candidate = provider_override.strip().lower()
+        if provider_candidate not in {"openai", "anthropic"}:
+            console.print(
+                "[bold red]Error:[/bold red] Unsupported provider override "
+                f"'{provider_override}'. Expected 'openai' or 'anthropic'."
+            )
+            sys.exit(1)
+        provider = provider_candidate
+    else:
+        if openai_key or openrouter_key:
+            provider = "openai"
+        elif anthropic_key:
+            provider = "anthropic"
+
+    if provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        model_name = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
-        console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
-        return ChatOpenAI(
-            model=model_name,
-            temperature=0.7,
-        )
-    if anthropic_key:
+        api_key = openai_key or openrouter_key
+        if api_key is None:
+            console.print("[bold red]Error:[/bold red] No OpenAI-compatible API key configured.")
+            console.print("\nSet one of the following environment variables or choose another provider:")
+            console.print("  - OPENAI_API_KEY")
+            console.print("  - OPENROUTER_API_KEY")
+            console.print("\nTip: You can also run with --provider anthropic if you have that key configured.")
+            sys.exit(1)
+
+        model_name = model_override or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+        base_url = base_url_override or os.environ.get("OPENAI_BASE_URL")
+        if base_url:
+            console.print(
+                f"[dim]Using OpenAI-compatible model: {model_name}[/dim] "
+                f"[dim](base_url={base_url})[/dim]"
+            )
+        else:
+            console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
+
+        kwargs = {
+            "model": model_name,
+            "temperature": 0.7,
+            "api_key": api_key,
+        }
+        if base_url:
+            kwargs["base_url"] = base_url
+
+        return ChatOpenAI(**kwargs)
+
+    if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        model_name = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+        if anthropic_key is None:
+            console.print("[bold red]Error:[/bold red] Anthropic provider selected but no API key configured.")
+            console.print("Set ANTHROPIC_API_KEY or omit --provider to auto-detect.")
+            sys.exit(1)
+
+        model_name = model_override or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
         console.print(f"[dim]Using Anthropic model: {model_name}[/dim]")
         return ChatAnthropic(
             model_name=model_name,
             max_tokens=20000,
         )
+
     console.print("[bold red]Error:[/bold red] No API key configured.")
     console.print("\nPlease set one of the following environment variables:")
-    console.print("  - OPENAI_API_KEY     (for OpenAI models like gpt-5-mini)")
+    console.print("  - OPENAI_API_KEY     (for OpenAI or OpenAI-compatible models)")
     console.print("  - ANTHROPIC_API_KEY  (for Claude models)")
-    console.print("\nExample:")
+    console.print("  - OPENROUTER_API_KEY (for OpenAI-compatible OpenRouter API)")
+    console.print("\nExamples:")
     console.print("  export OPENAI_API_KEY=your_api_key_here")
+    console.print("  export OPENROUTER_API_KEY=your_api_key_here  # with --provider openai --base-url https://openrouter.ai/api/v1")
     console.print("\nOr add it to your .env file.")
     sys.exit(1)

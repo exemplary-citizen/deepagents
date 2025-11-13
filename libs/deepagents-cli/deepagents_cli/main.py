@@ -109,6 +109,20 @@ def parse_args():
         "--sandbox-setup",
         help="Path to setup script to run in sandbox after creation",
     )
+    parser.add_argument(
+        "--model",
+        help="Override chat model identifier for this session (e.g., gpt-4o, claude-3-opus)",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "anthropic"],
+        help="Force use of a specific LLM provider when multiple keys are configured",
+    )
+    parser.add_argument(
+        "--base-url",
+        dest="base_url",
+        help="Override the provider base URL (useful for OpenAI-compatible hosts like OpenRouter)",
+    )
 
     return parser.parse_args()
 
@@ -286,6 +300,10 @@ async def main(
     sandbox_type: str = "none",
     sandbox_id: str | None = None,
     setup_script_path: str | None = None,
+    *,
+    model_override: str | None = None,
+    provider_override: str | None = None,
+    base_url_override: str | None = None,
 ):
     """Main entry point with conditional sandbox support.
 
@@ -296,7 +314,11 @@ async def main(
         sandbox_id: Optional existing sandbox ID to reuse
         setup_script_path: Optional path to setup script to run in sandbox
     """
-    model = create_model()
+    model = create_model(
+        model_override=model_override,
+        provider_override=provider_override,
+        base_url_override=base_url_override,
+    )
 
     # Branch 1: User wants a sandbox
     if sandbox_type != "none":
@@ -370,6 +392,9 @@ def cli_main() -> None:
                     args.sandbox,
                     args.sandbox_id,
                     args.sandbox_setup,
+                    model_override=args.model,
+                    provider_override=args.provider,
+                    base_url_override=args.base_url,
                 )
             )
     except KeyboardInterrupt:
