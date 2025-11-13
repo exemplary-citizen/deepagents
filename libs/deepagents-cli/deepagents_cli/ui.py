@@ -559,6 +559,7 @@ def show_help() -> None:
     console.print("  --model MODEL                 Override chat model used for this session")
     console.print("  --provider PROVIDER           Force provider (openai or anthropic)")
     console.print("  --base-url URL                Override OpenAI-compatible API base URL")
+    console.print("  --api-key KEY                 Override API key for the selected provider")
     console.print("  --sandbox-id ID               Reuse existing sandbox (skips creation/cleanup)")
     console.print()
 
@@ -583,7 +584,7 @@ def show_help() -> None:
         style=COLORS["dim"],
     )
     console.print(
-        "  deepagents --provider openai --model meta/llama-3 --base-url https://opencode.ai/zen/v1",
+        "  deepagents --provider openai --model meta/llama-3 --base-url https://opencode.ai/zen/v1 --api-key $MY_OPENAI_KEY",
         style=COLORS["dim"],
     )
     console.print(

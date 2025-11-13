@@ -121,7 +121,12 @@ def parse_args():
     parser.add_argument(
         "--base-url",
         dest="base_url",
-        help="Override the provider base URL (useful for OpenAI-compatible hosts like OpenRouter)",
+        help="Override the provider base URL (useful for OpenAI-compatible hosts such as OpenRouter or OpenCode)",
+    )
+    parser.add_argument(
+        "--api-key",
+        dest="api_key",
+        help="Override the API key used for the selected provider (pair with --base-url for custom OpenAI-compatible hosts)",
     )
 
     return parser.parse_args()
@@ -304,6 +309,7 @@ async def main(
     model_override: str | None = None,
     provider_override: str | None = None,
     base_url_override: str | None = None,
+    api_key_override: str | None = None,
 ):
     """Main entry point with conditional sandbox support.
 
@@ -318,6 +324,7 @@ async def main(
         model_override=model_override,
         provider_override=provider_override,
         base_url_override=base_url_override,
+        api_key_override=api_key_override,
     )
 
     # Branch 1: User wants a sandbox
@@ -395,6 +402,7 @@ def cli_main() -> None:
                     model_override=args.model,
                     provider_override=args.provider,
                     base_url_override=args.base_url,
+                    api_key_override=args.api_key,
                 )
             )
     except KeyboardInterrupt:

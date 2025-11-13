@@ -85,6 +85,7 @@ def create_model(
     model_override: str | None = None,
     provider_override: str | None = None,
     base_url_override: str | None = None,
+    api_key_override: str | None = None,
 ):
     """Create the appropriate model based on available API keys.
 
@@ -94,9 +95,8 @@ def create_model(
     Raises:
         SystemExit if no API key is configured
     """
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    openai_key_env = os.environ.get("OPENAI_API_KEY")
+    anthropic_key_env = os.environ.get("ANTHROPIC_API_KEY")
     provider = None
 
     if provider_override:
@@ -109,20 +109,20 @@ def create_model(
             sys.exit(1)
         provider = provider_candidate
     else:
-        if openai_key or openrouter_key:
+        if base_url_override or api_key_override or openai_key_env:
             provider = "openai"
-        elif anthropic_key:
+        elif anthropic_key_env:
             provider = "anthropic"
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        api_key = openai_key or openrouter_key
+        api_key = api_key_override or openai_key_env
         if api_key is None:
             console.print("[bold red]Error:[/bold red] No OpenAI-compatible API key configured.")
-            console.print("\nSet one of the following environment variables or choose another provider:")
-            console.print("  - OPENAI_API_KEY")
-            console.print("  - OPENROUTER_API_KEY")
+            console.print("\nProvide a key via one of the following methods:")
+            console.print("  - Set OPENAI_API_KEY in your environment")
+            console.print("  - Pass --api-key <key> on the CLI (optionally with --base-url)")
             console.print("\nTip: You can also run with --provider anthropic if you have that key configured.")
             sys.exit(1)
 
@@ -149,9 +149,10 @@ def create_model(
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
+        anthropic_key = api_key_override or anthropic_key_env
         if anthropic_key is None:
             console.print("[bold red]Error:[/bold red] Anthropic provider selected but no API key configured.")
-            console.print("Set ANTHROPIC_API_KEY or omit --provider to auto-detect.")
+            console.print("Set ANTHROPIC_API_KEY or provide --api-key when selecting --provider anthropic.")
             sys.exit(1)
 
         model_name = model_override or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
@@ -163,13 +164,12 @@ def create_model(
 
     console.print("[bold red]Error:[/bold red] No API key configured.")
     console.print("\nPlease set one of the following environment variables:")
-    console.print("  - OPENAI_API_KEY     (for OpenAI or OpenAI-compatible models)")
+    console.print("  - OPENAI_API_KEY     (for OpenAI or any OpenAI-compatible model)")
     console.print("  - ANTHROPIC_API_KEY  (for Claude models)")
-    console.print("  - OPENROUTER_API_KEY (for OpenAI-compatible OpenRouter API)")
     console.print("\nExamples:")
     console.print("  export OPENAI_API_KEY=your_api_key_here")
     console.print(
-        "  export OPENROUTER_API_KEY=your_api_key_here  # optional convenience for OpenAI-compatible hosts (e.g., OpenRouter, OpenCode) used with --provider openai --base-url https://your-host/api/v1"
+        "  deepagents --provider openai --model meta/llama-3 --base-url https://your-host/api/v1 --api-key your_api_key_here"
     )
     console.print("\nOr add it to your .env file.")
     sys.exit(1)
