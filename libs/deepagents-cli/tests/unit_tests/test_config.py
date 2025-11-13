@@ -35,7 +35,7 @@ def test_create_model_applies_openai_overrides(monkeypatch: pytest.MonkeyPatch) 
     assert model.kwargs["temperature"] == 0.7
 
 
-def test_create_model_uses_openrouter_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_create_model_uses_openai_compatible_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "router-key")
 
     import langchain_openai

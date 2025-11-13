@@ -583,7 +583,7 @@ def show_help() -> None:
         style=COLORS["dim"],
     )
     console.print(
-        "  deepagents --provider openai --model meta/llama-3 --base-url https://openrouter.ai/api/v1",
+        "  deepagents --provider openai --model meta/llama-3 --base-url https://opencode.ai/zen/v1",
         style=COLORS["dim"],
     )
     console.print(

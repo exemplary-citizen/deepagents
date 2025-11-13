@@ -168,6 +168,8 @@ def create_model(
     console.print("  - OPENROUTER_API_KEY (for OpenAI-compatible OpenRouter API)")
     console.print("\nExamples:")
     console.print("  export OPENAI_API_KEY=your_api_key_here")
-    console.print("  export OPENROUTER_API_KEY=your_api_key_here  # with --provider openai --base-url https://openrouter.ai/api/v1")
+    console.print(
+        "  export OPENROUTER_API_KEY=your_api_key_here  # optional convenience for OpenAI-compatible hosts (e.g., OpenRouter, OpenCode) used with --provider openai --base-url https://your-host/api/v1"
+    )
     console.print("\nOr add it to your .env file.")
     sys.exit(1)
