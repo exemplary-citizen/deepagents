@@ -334,6 +334,23 @@ class Settings:
 settings = Settings.from_environment()
 
 
+@dataclass
+class ModelConfig:
+    """Configuration for model override via CLI flags.
+
+    Attributes:
+        provider: Provider name ("openai", "anthropic", "google")
+        model: Model name (e.g., "gpt-5-mini", "claude-opus-4")
+        base_url: Custom base URL for OpenAI-compatible APIs
+        api_key: Custom API key (overrides environment variable)
+    """
+
+    provider: str | None = None
+    model: str | None = None
+    base_url: str | None = None
+    api_key: str | None = None
+
+
 class SessionState:
     """Holds mutable session state (auto-approve mode, etc)."""
 
@@ -360,17 +377,184 @@ def get_default_coding_instructions() -> str:
     return default_prompt_path.read_text()
 
 
-def create_model() -> BaseChatModel:
-    """Create the appropriate model based on available API keys.
+def create_model(config: ModelConfig | None = None) -> BaseChatModel:
+    """Create the appropriate model based on config or available API keys.
 
-    Uses the global settings instance to determine which model to create.
+    Args:
+        config: Optional model configuration from CLI flags
 
     Returns:
-        ChatModel instance (OpenAI or Anthropic)
+        ChatModel instance (OpenAI, Anthropic, or Google)
 
     Raises:
         SystemExit if no API key is configured
     """
+    # If config provided with overrides, use them
+    if config and (config.model or config.provider or config.base_url):
+        # Case 1: Custom base URL (OpenAI-compatible API)
+        if config.base_url:
+            from langchain_openai import ChatOpenAI
+
+            model_name = config.model or "gpt-5-mini"
+            api_key = config.api_key or os.environ.get("OPENAI_API_KEY")
+
+            if not api_key:
+                console.print("[bold red]Error:[/bold red] --api-key required when using --base-url")
+                console.print("\nExample:")
+                console.print(
+                    "  deepagents --model <model> --base-url <url> --api-key <key>"
+                )
+                sys.exit(1)
+
+            console.print(
+                f"[dim]Using OpenAI-compatible API: {model_name} via {config.base_url}[/dim]"
+            )
+            return ChatOpenAI(
+                model=model_name,
+                base_url=config.base_url,
+                api_key=api_key,
+            )
+
+        # Case 2: Explicit provider
+        if config.provider:
+            if config.provider == "openai":
+                from langchain_openai import ChatOpenAI
+
+                model_name = config.model or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+                api_key = config.api_key or os.environ.get("OPENAI_API_KEY")
+
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] OPENAI_API_KEY not set")
+                    console.print("\nSet via environment or CLI flag:")
+                    console.print("  export OPENAI_API_KEY=your_key")
+                    console.print("  deepagents --provider openai --api-key your_key")
+                    sys.exit(1)
+
+                console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
+                return ChatOpenAI(model=model_name, api_key=api_key)
+
+            elif config.provider == "anthropic":
+                from langchain_anthropic import ChatAnthropic
+
+                model_name = config.model or os.environ.get(
+                    "ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"
+                )
+                api_key = config.api_key or os.environ.get("ANTHROPIC_API_KEY")
+
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] ANTHROPIC_API_KEY not set")
+                    console.print("\nSet via environment or CLI flag:")
+                    console.print("  export ANTHROPIC_API_KEY=your_key")
+                    console.print("  deepagents --provider anthropic --api-key your_key")
+                    sys.exit(1)
+
+                console.print(f"[dim]Using Anthropic model: {model_name}[/dim]")
+                return ChatAnthropic(
+                    model_name=model_name,
+                    api_key=api_key,
+                    max_tokens=20_000,  # type: ignore[arg-type]
+                )
+
+            elif config.provider == "google":
+                from langchain_google_genai import ChatGoogleGenerativeAI
+
+                model_name = config.model or os.environ.get("GOOGLE_MODEL", "gemini-3-pro-preview")
+                api_key = config.api_key or os.environ.get("GOOGLE_API_KEY")
+
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] GOOGLE_API_KEY not set")
+                    console.print("\nSet via environment or CLI flag:")
+                    console.print("  export GOOGLE_API_KEY=your_key")
+                    console.print("  deepagents --provider google --api-key your_key")
+                    sys.exit(1)
+
+                console.print(f"[dim]Using Google Gemini model: {model_name}[/dim]")
+                return ChatGoogleGenerativeAI(
+                    model=model_name,
+                    api_key=api_key,
+                    temperature=0,
+                    max_tokens=None,
+                )
+
+        # Case 3: Only model specified - auto-detect provider from name
+        if config.model:
+            model_name = config.model
+
+            # Auto-detect from model name prefix
+            if model_name.startswith("claude-"):
+                from langchain_anthropic import ChatAnthropic
+
+                api_key = config.api_key or os.environ.get("ANTHROPIC_API_KEY")
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] ANTHROPIC_API_KEY not set")
+                    console.print("\nDetected Claude model but no API key found.")
+                    console.print("Set via environment or CLI flag:")
+                    console.print("  export ANTHROPIC_API_KEY=your_key")
+                    console.print("  deepagents --model claude-... --api-key your_key")
+                    sys.exit(1)
+                console.print(f"[dim]Using Anthropic model: {model_name}[/dim]")
+                return ChatAnthropic(
+                    model_name=model_name,
+                    api_key=api_key,
+                    max_tokens=20_000,  # type: ignore[arg-type]
+                )
+
+            elif model_name.startswith(("gpt-", "o1-")):
+                from langchain_openai import ChatOpenAI
+
+                api_key = config.api_key or os.environ.get("OPENAI_API_KEY")
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] OPENAI_API_KEY not set")
+                    console.print("\nDetected OpenAI model but no API key found.")
+                    console.print("Set via environment or CLI flag:")
+                    console.print("  export OPENAI_API_KEY=your_key")
+                    console.print("  deepagents --model gpt-... --api-key your_key")
+                    sys.exit(1)
+                console.print(f"[dim]Using OpenAI model: {model_name}[/dim]")
+                return ChatOpenAI(model=model_name, api_key=api_key)
+
+            elif model_name.startswith("gemini-"):
+                from langchain_google_genai import ChatGoogleGenerativeAI
+
+                api_key = config.api_key or os.environ.get("GOOGLE_API_KEY")
+                if not api_key:
+                    console.print("[bold red]Error:[/bold red] GOOGLE_API_KEY not set")
+                    console.print("\nDetected Gemini model but no API key found.")
+                    console.print("Set via environment or CLI flag:")
+                    console.print("  export GOOGLE_API_KEY=your_key")
+                    console.print("  deepagents --model gemini-... --api-key your_key")
+                    sys.exit(1)
+                console.print(f"[dim]Using Google Gemini model: {model_name}[/dim]")
+                return ChatGoogleGenerativeAI(
+                    model=model_name,
+                    api_key=api_key,
+                    temperature=0,
+                    max_tokens=None,
+                )
+
+            else:
+                # Unknown model name - try as OpenAI-compatible
+                from langchain_openai import ChatOpenAI
+
+                api_key = config.api_key or os.environ.get("OPENAI_API_KEY")
+                if api_key:
+                    console.print(f"[dim]Using OpenAI-compatible model: {model_name}[/dim]")
+                    console.print(
+                        "[dim]Tip: Use --base-url for custom API endpoints (e.g., OpenRouter)[/dim]"
+                    )
+                    return ChatOpenAI(model=model_name, api_key=api_key)
+                else:
+                    console.print("[bold red]Error:[/bold red] Cannot determine provider for model")
+                    console.print(f"\nModel '{model_name}' doesn't match known prefixes.")
+                    console.print("\nOptions:")
+                    console.print("  1. Use --provider flag: --provider openai --model ...")
+                    console.print("  2. Set API key: --model ... --api-key your_key")
+                    console.print(
+                        "  3. Use --base-url for custom endpoints: --model ... --base-url https://... --api-key ..."
+                    )
+                    sys.exit(1)
+
+    # Default behavior - use environment variables
     if settings.has_openai:
         from langchain_openai import ChatOpenAI
 
@@ -408,4 +592,6 @@ def create_model() -> BaseChatModel:
     console.print("\nExample:")
     console.print("  export OPENAI_API_KEY=your_api_key_here")
     console.print("\nOr add it to your .env file.")
+    console.print("\nOr use CLI flags:")
+    console.print("  deepagents --model <model_name> --api-key <your_key>")
     sys.exit(1)

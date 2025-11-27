@@ -13,6 +13,7 @@ from deepagents_cli.commands import execute_bash_command, handle_command
 from deepagents_cli.config import (
     COLORS,
     DEEP_AGENTS_ASCII,
+    ModelConfig,
     SessionState,
     console,
     create_model,
@@ -125,6 +126,23 @@ def parse_args():
         "--no-splash",
         action="store_true",
         help="Disable the startup splash screen",
+    )
+    parser.add_argument(
+        "--model",
+        help="Override the chat model (e.g., gpt-5-mini, claude-opus-4, meta-llama/Llama-3-70b)",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "anthropic", "google"],
+        help="Explicitly set the provider (auto-detected from model name if not specified)",
+    )
+    parser.add_argument(
+        "--base-url",
+        help="Custom base URL for OpenAI-compatible APIs (e.g., https://openrouter.ai/api/v1)",
+    )
+    parser.add_argument(
+        "--api-key",
+        help="Override API key for the selected provider",
     )
 
     return parser.parse_args()
@@ -269,9 +287,9 @@ async def simple_cli(
 
 
 async def _run_agent_session(
-    model,
     assistant_id: str,
     session_state,
+    model_config: ModelConfig | None = None,
     sandbox_backend=None,
     sandbox_type: str | None = None,
     setup_script_path: str | None = None,
@@ -281,13 +299,15 @@ async def _run_agent_session(
     Extracted to avoid duplication between sandbox and local modes.
 
     Args:
-        model: LLM model to use
         assistant_id: Agent identifier for memory storage
         session_state: Session state with auto-approve settings
+        model_config: Optional model configuration from CLI flags
         sandbox_backend: Optional sandbox backend for remote execution
         sandbox_type: Type of sandbox being used
         setup_script_path: Path to setup script that was run (if any)
     """
+    # Create model with optional config override
+    model = create_model(model_config)
     # Create agent with conditional tools
     tools = [http_request, fetch_url]
     if settings.has_tavily:
@@ -320,6 +340,7 @@ async def _run_agent_session(
 async def main(
     assistant_id: str,
     session_state,
+    model_config: ModelConfig | None = None,
     sandbox_type: str = "none",
     sandbox_id: str | None = None,
     setup_script_path: str | None = None,
@@ -329,11 +350,11 @@ async def main(
     Args:
         assistant_id: Agent identifier for memory storage
         session_state: Session state with auto-approve settings
+        model_config: Optional model configuration from CLI flags
         sandbox_type: Type of sandbox ("none", "modal", "runloop", "daytona")
         sandbox_id: Optional existing sandbox ID to reuse
         setup_script_path: Optional path to setup script to run in sandbox
     """
-    model = create_model()
 
     # Branch 1: User wants a sandbox
     if sandbox_type != "none":
@@ -347,9 +368,9 @@ async def main(
                 console.print()
 
                 await _run_agent_session(
-                    model,
                     assistant_id,
                     session_state,
+                    model_config,
                     sandbox_backend,
                     sandbox_type=sandbox_type,
                     setup_script_path=setup_script_path,
@@ -371,7 +392,9 @@ async def main(
     # Branch 2: User wants local mode (none or default)
     else:
         try:
-            await _run_agent_session(model, assistant_id, session_state, sandbox_backend=None)
+            await _run_agent_session(
+                assistant_id, session_state, model_config, sandbox_backend=None
+            )
         except KeyboardInterrupt:
             console.print("\n\n[yellow]Interrupted[/yellow]")
             sys.exit(0)
@@ -406,11 +429,24 @@ def cli_main() -> None:
             # Create session state from args
             session_state = SessionState(auto_approve=args.auto_approve, no_splash=args.no_splash)
 
+            # Build model config from CLI flags
+            model_config = None
+            if hasattr(args, "model") and (
+                args.model or args.provider or args.base_url or args.api_key
+            ):
+                model_config = ModelConfig(
+                    provider=args.provider,
+                    model=args.model,
+                    base_url=args.base_url,
+                    api_key=args.api_key,
+                )
+
             # API key validation happens in create_model()
             asyncio.run(
                 main(
                     args.agent,
                     session_state,
+                    model_config,
                     args.sandbox,
                     args.sandbox_id,
                     args.sandbox_setup,
