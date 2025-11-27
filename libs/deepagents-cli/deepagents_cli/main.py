@@ -79,7 +79,7 @@ def parse_args():
         add_help=False,
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+    subparsers = parser.add_subparsers(dest="command", help="Command to run", required=False)
 
     # List command
     subparsers.add_parser("list", help="List all available agents")
