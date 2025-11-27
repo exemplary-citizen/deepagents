@@ -560,6 +560,11 @@ def show_help() -> None:
     )
     console.print("  --sandbox-id ID               Reuse existing sandbox (skips creation/cleanup)")
     console.print()
+    console.print("  --model NAME                  Override chat model (e.g., gpt-5-preview, claude-opus-4)")
+    console.print("  --provider TYPE               Explicitly set provider (openai, anthropic, google)")
+    console.print("  --base-url URL                Custom OpenAI-compatible API endpoint")
+    console.print("  --api-key KEY                 Override API key for selected provider")
+    console.print()
 
     console.print("[bold]Examples:[/bold]", style=COLORS["primary"])
     console.print(
@@ -585,6 +590,24 @@ def show_help() -> None:
         "  deepagents --sandbox runloop --sandbox-id dbx_123  # Reuse existing sandbox",
         style=COLORS["dim"],
     )
+    console.print()
+    console.print(
+        "  deepagents --model gpt-5-preview        # Use different OpenAI model",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --model claude-opus-4        # Use different Claude model (auto-detected)",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --provider anthropic --model claude-sonnet-4-5-20250929  # Explicit provider",
+        style=COLORS["dim"],
+    )
+    console.print(
+        "  deepagents --model meta-llama/Llama-3-70b --base-url https://openrouter.ai/api/v1 --api-key sk-or-...  # OpenRouter",
+        style=COLORS["dim"],
+    )
+    console.print()
     console.print(
         "  deepagents list                         # List all agents", style=COLORS["dim"]
     )

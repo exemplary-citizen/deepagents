@@ -49,6 +49,14 @@ deepagents --auto-approve
 # Execute code in a remote sandbox
 deepagents --sandbox modal        # or runloop, daytona
 deepagents --sandbox-id dbx_123   # reuse existing sandbox
+
+# Override the chat model
+deepagents --model gpt-5-preview
+deepagents --model claude-opus-4
+deepagents --provider anthropic --model claude-sonnet-4-5-20250929
+
+# Use OpenAI-compatible APIs (OpenRouter, Together AI, etc.)
+deepagents --model meta-llama/Llama-3-70b-chat-hf --base-url https://openrouter.ai/api/v1 --api-key sk-or-...
 ```
 
 Type naturally as you would in a chat interface. The agent will use its built-in tools, skills, and memory to help you with tasks. 
@@ -84,7 +92,87 @@ The agent comes with the following built-in tools (always available without conf
 > Each operation will prompt for approval showing the action details. Use `--auto-approve` to skip prompts:
 > ```bash
 > deepagents --auto-approve
-> ``` 
+> ```
+
+## Model Configuration
+
+DeepAgents CLI supports multiple model providers and allows you to override the default model via CLI flags.
+
+### Default Behavior
+
+By default, the CLI uses environment variables to determine which model to use:
+
+```bash
+# OpenAI (set OPENAI_API_KEY)
+export OPENAI_API_KEY=your_key
+export OPENAI_MODEL=gpt-5-mini  # optional, defaults to gpt-5-mini
+
+# Anthropic (set ANTHROPIC_API_KEY)
+export ANTHROPIC_API_KEY=your_key
+export ANTHROPIC_MODEL=claude-sonnet-4-5-20250929  # optional
+
+# Google Gemini (set GOOGLE_API_KEY)
+export GOOGLE_API_KEY=your_key
+export GOOGLE_MODEL=gemini-3-pro-preview  # optional
+```
+
+### Override via CLI Flags
+
+You can override the model for any session using CLI flags:
+
+```bash
+# Use a different model from the same provider
+deepagents --model gpt-5-preview
+deepagents --model claude-opus-4
+
+# Explicitly specify the provider (useful for ambiguous model names)
+deepagents --provider anthropic --model claude-sonnet-4-5-20250929
+deepagents --provider openai --model gpt-5-mini
+
+# Override API key for a single session
+deepagents --model gpt-5-mini --api-key sk-proj-...
+```
+
+### OpenAI-Compatible APIs
+
+DeepAgents supports any OpenAI-compatible API endpoint (OpenRouter, Together AI, Anyscale, etc.):
+
+```bash
+# OpenRouter
+deepagents --model meta-llama/Llama-3-70b-chat-hf \
+  --base-url https://openrouter.ai/api/v1 \
+  --api-key sk-or-...
+
+# Together AI
+deepagents --model mistralai/Mixtral-8x7B-Instruct-v0.1 \
+  --base-url https://api.together.xyz/v1 \
+  --api-key ...
+
+# Any OpenAI-compatible endpoint
+deepagents --model custom-model \
+  --base-url https://your-api.com/v1 \
+  --api-key your_key
+```
+
+### Auto-Detection
+
+When you specify only `--model`, the CLI auto-detects the provider from the model name:
+
+- Models starting with `claude-` → Anthropic
+- Models starting with `gpt-` or `o1-` → OpenAI
+- Models starting with `gemini-` → Google
+- Other model names → OpenAI-compatible API (requires API key)
+
+```bash
+# Auto-detected as Anthropic
+deepagents --model claude-opus-4
+
+# Auto-detected as OpenAI
+deepagents --model gpt-5-preview
+
+# Auto-detected as Google
+deepagents --model gemini-3-pro-preview
+```
 
 ## Agent Configuration
 
